@@ -1024,19 +1024,23 @@ static void IRAM_ATTR i2c_master_cmd_begin_static(i2c_port_t i2c_num)
         }
     } else if ((p_i2c->status == I2C_STATUS_ACK_ERROR)
                || (p_i2c->status == I2C_STATUS_TIMEOUT)) {
-        i2c_hw_fsm_reset(i2c_num);
-            evt.type = I2C_CMD_EVT_TIMEOUT;
-        } else if (p_i2c->status == I2C_STATUS_ACK_ERROR) {
-            clear_bus_cnt++;
-            if(clear_bus_cnt >= I2C_ACKERR_CNT_MAX) {
-                i2c_master_clear_bus(i2c_num);
-                clear_bus_cnt = 0;
+            //i2c_hw_fsm_reset(i2c_num);
+
+            if (p_i2c->status == I2C_STATUS_ACK_ERROR) {
+
+                evt.type = I2C_CMD_EVT_ACK_ERR;
+                if (p_i2c->i2c_isr_cb) {
+                    p_i2c->i2c_isr_cb(I2C_TRANS_STATUS_ERR, p_i2c->user_ctx);
+                }
             }
-            evt.type = I2C_CMD_EVT_ACK_ERR;
+            else
+            {
+                evt.type = I2C_CMD_EVT_TIMEOUT;
+
+            }
+
         xQueueOverwriteFromISR(p_i2c->cmd_evt_queue, &evt, &HPTaskAwoken);
-        if (p_i2c->i2c_isr_cb) {
-            p_i2c->i2c_isr_cb(I2C_TRANS_STATUS_ERR, p_i2c->user_ctx);
-        }
+
         return;
     } else if (p_i2c->status == I2C_STATUS_DONE) {
         return;
